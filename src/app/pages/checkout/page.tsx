@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CreditCard, Lock, Truck, Shield, X, Phone, Mail, MapPin, User, Users, ShoppingCart, Package, AlertCircle, CheckCircle, Search, ShieldCheck } from 'lucide-react';
+import { CreditCard, Lock, Truck, X, Phone, User, Package, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface CartItem {
   _id?: string;
@@ -13,20 +13,46 @@ interface CartItem {
   images: string[];
   color?: string;
   size?: string;
-    brand?: string; // <-- Add this line
-    sku?: string; // <-- Add this line
-}
-
-interface CourierData {
-  [key: string]: [number, number]; // [total, fraud]
+  brand?: string;
+  sku?: string;
 }
 
 interface FraudCheckResult {
-  courierData: CourierData;
-  riskScore: number | string; // Can be number or "NA"
+  courierData: { [key: string]: [number, number] };
+  riskScore: string; // Changed to string to store as percentage
   recommendation: string;
   apiStatus: 'success' | 'failed' | 'timeout';
+  details?: {
+    totalOrders: number;
+    totalFraud: number;
+    fraudPercentage: number;
+    riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  };
 }
+
+const Toast = ({ message, type, isVisible, onClose }: any) => {
+  useEffect(() => {
+    if (isVisible) {
+      const timer = setTimeout(onClose, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [isVisible, onClose]);
+
+  if (!isVisible) return null;
+
+  const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-primary';
+  const icon = type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />;
+
+  return (
+    <div className={`fixed top-4 right-4 z-50 ${bgColor} text-white px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 animate-slide-in max-w-md`}>
+      {icon}
+      <span className="flex-1">{message}</span>
+      <button onClick={onClose} className="text-white hover:text-gray-200">
+        <X className="w-4 h-4" />
+      </button>
+    </div>
+  );
+};
 
 export default function EnhancedBengaliCheckout() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -40,9 +66,9 @@ export default function EnhancedBengaliCheckout() {
   });
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [orderLoading, setOrderLoading] = useState(false);
+  const [toast, setToast] = useState({ message: '', type: 'info' as const, isVisible: false });
 
   useEffect(() => {
-    // Get cart data from localStorage or use demo data
     const cartDetailsString = localStorage.getItem('cartDetails');
     if (cartDetailsString) {
       try {
@@ -50,20 +76,25 @@ export default function EnhancedBengaliCheckout() {
         setCartItems(cartDetails.items || []);
         setTotalPrice(parseFloat(cartDetails.total) || 0);
       } catch (error) {
-        console.error('Error parsing cart details:', error);
-        // Set demo data if localStorage parsing fails
         setDemoData();
       }
     } else {
-      // Set demo data if no localStorage data
       setDemoData();
     }
   }, []);
 
+  const showToast = (message: string, type: 'success' | 'error' | 'info') => {
+    setToast({ message, type, isVisible: true });
+  };
+
+  const hideToast = () => {
+    setToast(prev => ({ ...prev, isVisible: false }));
+  };
+
   const setDemoData = () => {
     const demoItems: CartItem[] = [
       {
-        _id: '64f123abc456def789012345', // Sample MongoDB ObjectId
+        _id: '64f123abc456def789012345',
         cartId: 'demo-1',
         name: 'Wireless Bluetooth Headphones',
         price: 2500,
@@ -72,9 +103,6 @@ export default function EnhancedBengaliCheckout() {
         images: ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&h=300&fit=crop&crop=center'],
         color: 'Black',
         size: 'Medium',
-      
-  
-       
       },
       {
         _id: '64f123abc456def789012346',
@@ -86,7 +114,6 @@ export default function EnhancedBengaliCheckout() {
         images: ['https://images.unsplash.com/photo-1556228720-195a672e8a03?w=300&h=300&fit=crop&crop=center'],
         color: 'Blue',
         size: 'Large',
-       
       }
     ];
     setCartItems(demoItems);
@@ -102,26 +129,22 @@ export default function EnhancedBengaliCheckout() {
     const updatedItems = cartItems.filter(item => item.cartId !== cartId);
     setCartItems(updatedItems);
     
-    // Recalculate total
     const newTotal = updatedItems.reduce((sum, item) => sum + (item.salePrice * item.quantity), 0);
     setTotalPrice(newTotal);
     
-    // Update localStorage
     localStorage.setItem('cartDetails', JSON.stringify({ 
       items: updatedItems, 
       total: newTotal.toFixed(0) 
     }));
   };
 
-  // Background fraud check function with fallback handling
   const performBackgroundFraudCheck = async (mobile: string): Promise<FraudCheckResult> => {
     try {
-      // Set a timeout for the API call (5 seconds)
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
       const response = await fetch(
-        `https://api.fraudguard.pro/api-fraud-check/fraud-check?number=${mobile}&api_key=ff3b5c2cafacd95a97c75f3f79950ac8`,
+        `https://api.fraudguard.pro/api-fraud-check/fraud-check?number=${mobile}&api_key=6b30eeed1d362e6133e7e73d9090ee6`,
         { 
           signal: controller.signal,
           headers: {
@@ -135,26 +158,59 @@ export default function EnhancedBengaliCheckout() {
       
       if (response.ok) {
         const data = await response.json();
+        const courierData = data.courierData || {};
+        let totalOrders = 0;
+        let totalFraud = 0;
+        
+        Object.values(courierData).forEach(([orders, frauds]: [number, number]) => {
+          totalOrders += orders;
+          totalFraud += frauds;
+        });
+        
+        const fraudPercentage = totalOrders > 0 ? (totalFraud / totalOrders) * 100 : 0;
+        const riskScore = `${Math.round(fraudPercentage * 10) / 10}%`; // Store as percentage string
+        
+        let riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+        let recommendation: string;
+        
+        if (fraudPercentage === 0) {
+          riskLevel = 'LOW';
+          recommendation = 'Safe to proceed';
+        } else if (fraudPercentage <= 10) {
+          riskLevel = 'LOW';
+          recommendation = 'Low risk - proceed with normal verification';
+        } else if (fraudPercentage <= 25) {
+          riskLevel = 'MEDIUM';
+          recommendation = 'Medium risk - additional verification recommended';
+        } else if (fraudPercentage <= 50) {
+          riskLevel = 'HIGH';
+          recommendation = 'High risk - thorough verification required';
+        } else {
+          riskLevel = 'CRITICAL';
+          recommendation = 'Critical risk - manual review required';
+        }
+        
         return {
-          courierData: data.courierData || {},
-          riskScore: data.riskScore || 0,
-          recommendation: data.recommendation || '',
-          apiStatus: 'success'
+          courierData,
+          riskScore,
+          recommendation,
+          apiStatus: 'success',
+          details: {
+            totalOrders,
+            totalFraud,
+            fraudPercentage,
+            riskLevel
+          }
         };
       } else {
-        // API returned an error status
-        console.warn(`Fraud API returned status ${response.status}`);
         return {
           courierData: {},
-          riskScore: 'NA',
+          riskScore: '0%',
           recommendation: 'API unavailable',
           apiStatus: 'failed'
         };
       }
     } catch (error) {
-      console.error("Background fraud check error:", error);
-      
-      // Determine if it was a timeout or other error
       let apiStatus: 'timeout' | 'failed' = 'failed';
       if (typeof error === 'object' && error !== null && 'name' in error && (error as any).name === 'AbortError') {
         apiStatus = 'timeout';
@@ -162,7 +218,7 @@ export default function EnhancedBengaliCheckout() {
 
       return {
         courierData: {},
-        riskScore: 'NA',
+        riskScore: '0%',
         recommendation: 'API unavailable',
         apiStatus
       };
@@ -170,79 +226,72 @@ export default function EnhancedBengaliCheckout() {
   };
 
   const handlePlaceOrder = async () => {
-    // Basic validation
     if (!formData.name || !formData.mobile || !formData.address || !formData.area) {
-      alert('সকল প্রয়োজনীয় তথ্য পূরণ করুন');
+      showToast('সকল প্রয়োজনীয় তথ্য পূরণ করুন', 'error');
       return;
     }
 
     setOrderLoading(true);
 
     try {
-      // Perform background fraud check with fallback
       const fraudCheckData = await performBackgroundFraudCheck(formData.mobile);
       
-      // Store complete product information with all necessary details
       const completeItems = cartItems.map(item => ({
-  productId: item._id || item.cartId,
-  name: item.name,
-  salePrice: item.salePrice,
-  quantity: item.quantity,
-  itemTotal: item.salePrice * item.quantity,
-  color: item.color || null,
-  size: item.size || null,
-  primaryImage: item.images?.[0] || null
-}));
+        productId: item._id || item.cartId,
+        name: item.name,
+        salePrice: item.salePrice,
+        quantity: item.quantity,
+        itemTotal: item.salePrice * item.quantity,
+        color: item.color || null,
+        size: item.size || null,
+        primaryImage: item.images?.[0] || null
+      }));
 
-      // Calculate comprehensive order totals
       const itemsSubtotal = completeItems.reduce((sum, item) => sum + item.itemTotal, 0);
-      // Removed totalDiscount calculation as 'discount' does not exist on item
       const deliveryCharge = formData.area === 'dhaka-inside' ? 60 : 120;
       const finalTotal = itemsSubtotal + deliveryCharge;
 
-     const orderData = {
-  customerInfo: {
-    name: formData.name.trim(),
-    mobile: formData.mobile.trim(),
-    address: formData.address.trim(),
-    area: formData.area,
-    areaName: formData.area === 'dhaka-inside' ? 'ঢাকার ভিতরে' : 'ঢাকার বাহিরে',
-    note: formData.note ? formData.note.trim() : null
-  },
-  items: completeItems,
-  totalAmount: itemsSubtotal,
-  totalQuantity: completeItems.reduce((sum, item) => sum + item.quantity, 0),
-  deliveryCharge: deliveryCharge,
-  finalTotal: finalTotal,
-  paymentMethod: paymentMethod,
-  paymentMethodName: paymentMethod === 'cod' ? 'Cash On Delivery' : 'Bkash',
-  paymentStatus: 'pending',
-  fraudCheckData: {
-    riskScore: fraudCheckData.riskScore,
-    recommendation: fraudCheckData.recommendation,
-    courierData: fraudCheckData.courierData,
-    apiStatus: fraudCheckData.apiStatus,
-    checkedAt: new Date().toISOString()
-  },
-  status: 'pending',
-  statusHistory: [
-    {
-      status: 'pending',
-      timestamp: new Date().toISOString(),
-      note: 'Order placed successfully'
-    }
-  ],
-  orderDate: new Date().toISOString(),
-  metadata: {
-    source: 'web_checkout',
-    userAgent: navigator.userAgent,
-    platform: 'web',
-    version: '1.0'
-  }
-};
-
-
-      console.log('Complete Order Data:', orderData); // For debugging
+      const orderData = {
+        customerInfo: {
+          name: formData.name.trim(),
+          mobile: formData.mobile.trim(),
+          address: formData.address.trim(),
+          area: formData.area,
+          areaName: formData.area === 'dhaka-inside' ? 'ঢাকার ভিতরে' : 'ঢাকার বাহিরে',
+          note: formData.note ? formData.note.trim() : null
+        },
+        items: completeItems,
+        totalAmount: itemsSubtotal,
+        totalQuantity: completeItems.reduce((sum, item) => sum + item.quantity, 0),
+        deliveryCharge: deliveryCharge,
+        finalTotal: finalTotal,
+        paymentMethod: paymentMethod,
+        paymentMethodName: paymentMethod === 'cod' ? 'Cash On Delivery' : 'Bkash',
+        paymentStatus: 'pending',
+        fraudCheckData: {
+          riskScore: fraudCheckData.riskScore,
+          recommendation: fraudCheckData.recommendation,
+          courierData: fraudCheckData.courierData,
+          apiStatus: fraudCheckData.apiStatus,
+          details: fraudCheckData.details,
+          checkedAt: new Date().toISOString()
+        },
+        status: 'pending',
+        statusHistory: [
+          {
+            status: 'pending',
+            timestamp: new Date().toISOString(),
+            note: 'Order placed successfully'
+          }
+        ],
+        orderDate: new Date().toISOString(),
+        metadata: {
+          source: 'web_checkout',
+          userAgent: navigator.userAgent,
+          platform: 'web',
+          version: '1.0'
+        }
+      };
 
       const response = await fetch('https://swish-server.vercel.app/addorders', {
         method: 'POST',
@@ -258,17 +307,13 @@ export default function EnhancedBengaliCheckout() {
 
       const result = await response.json();
       
-      // Success message
-      let successMessage = `অর্ডার সফলভাবে সম্পন্ন হয়েছে!\nঅর্ডার ID: ${result.orderId}`;
+      const successMessage = `🎉 অর্ডার সফলভাবে সম্পন্ন হয়েছে! অর্ডার ID: ${result.orderId}`;
+      showToast(successMessage, 'success');
       
-      // Optional: Add fraud check status for debugging
-      if (fraudCheckData.apiStatus !== 'success') {
-        console.log(`Fraud check API ${fraudCheckData.apiStatus} - Score: ${fraudCheckData.riskScore}`);
+      if (fraudCheckData.details) {
+        console.log(`Fraud Analysis - Risk Score: ${fraudCheckData.riskScore}, Level: ${fraudCheckData.details.riskLevel}, Orders: ${fraudCheckData.details.totalOrders}, Frauds: ${fraudCheckData.details.totalFraud}`);
       }
       
-      alert(successMessage);
-      
-      // Clear cart and form
       localStorage.removeItem('cartDetails');
       setCartItems([]);
       setTotalPrice(0);
@@ -280,9 +325,13 @@ export default function EnhancedBengaliCheckout() {
         note: '',
       });
       
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 2000);
+      
     } catch (error) {
       console.error('Order placement error:', error);
-      alert('অর্ডার প্লেস করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।');
+      showToast('অর্ডার প্লেস করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।', 'error');
     } finally {
       setOrderLoading(false);
     }
@@ -293,7 +342,14 @@ export default function EnhancedBengaliCheckout() {
   const total = subtotal + deliveryCharge;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-50">
+      <Toast 
+        message={toast.message} 
+        type={toast.type} 
+        isVisible={toast.isVisible} 
+        onClose={hideToast} 
+      />
+      
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">চেকআউট</h1>
@@ -318,7 +374,7 @@ export default function EnhancedBengaliCheckout() {
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
                   placeholder="আপনার সম্পূর্ণ নাম লিখুন"
                 />
               </div>
@@ -332,7 +388,7 @@ export default function EnhancedBengaliCheckout() {
                   name="mobile"
                   value={formData.mobile}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
                   placeholder="০১XXXXXXXXX"
                 />
               </div>
@@ -345,7 +401,7 @@ export default function EnhancedBengaliCheckout() {
                   name="address"
                   value={formData.address}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
                   rows={3}
                   placeholder="বাড়ির নাম্বার, রাস্তার নাম, এলাকা"
                 />
@@ -359,7 +415,7 @@ export default function EnhancedBengaliCheckout() {
                   name="area"
                   value={formData.area}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors bg-white"
                 >
                   <option value="">এলাকা সিলেক্ট করুন</option>
                   <option value="dhaka-inside">ঢাকার ভিতরে (৬০ টাকা)</option>
@@ -375,7 +431,7 @@ export default function EnhancedBengaliCheckout() {
                   name="note"
                   value={formData.note}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
                   rows={2}
                   placeholder="অতিরিক্ত কোনো তথ্য থাকলে লিখুন"
                 />
@@ -410,8 +466,6 @@ export default function EnhancedBengaliCheckout() {
                             <div>পরিমাণ: {item.quantity}</div>
                             {item.color && <div>রঙ: {item.color}</div>}
                             {item.size && <div>সাইজ: {item.size}</div>}
-                            {item.brand && <div>ব্র্যান্ড: {item.brand}</div>}
-                            {item.sku && <div>SKU: {item.sku}</div>}
                           </div>
                           <div className="flex items-center justify-between">
                             <div className="text-sm">
@@ -471,7 +525,7 @@ export default function EnhancedBengaliCheckout() {
                     value="cod"
                     checked={paymentMethod === 'cod'}
                     onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="text-primary focus:ring-blue-500"
+                    className="text-primary focus:ring-primary"
                   />
                   <Truck className="w-5 h-5 text-green-600" />
                   <span className="text-slate-700 font-medium">Cash On Delivery</span>
@@ -483,7 +537,7 @@ export default function EnhancedBengaliCheckout() {
                     value="bkash"
                     checked={paymentMethod === 'bkash'}
                     onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="text-primary focus:ring-blue-500"
+                    className="text-primary focus:ring-primary"
                   />
                   <Phone className="w-5 h-5 text-pink-600" />
                   <span className="text-slate-700 font-medium">Bkash</span>
@@ -493,7 +547,7 @@ export default function EnhancedBengaliCheckout() {
               <button
                 onClick={handlePlaceOrder}
                 disabled={cartItems.length === 0 || orderLoading}
-                className="w-full mt-6 py-4 bg-gradient-to-r from-primary to-blue-700 text-white font-bold rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full mt-6 py-4 bg-primary text-white font-bold rounded-lg hover:from-primary/90 hover:to-primary transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {orderLoading ? (
                   <>
@@ -516,6 +570,23 @@ export default function EnhancedBengaliCheckout() {
           </div>
         </div>
       </div>
+      
+      <style jsx>{`
+        .animate-slide-in {
+          animation: slide-in 0.3s ease-out;
+        }
+        
+        @keyframes slide-in {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
     </div>
   );
 }
