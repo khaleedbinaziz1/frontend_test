@@ -9,7 +9,7 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       <main>
-        <Hero1 heroPreviews={["/images/hero/hero-1.png", "/images/hero/hero-2.png", "/images/hero/hero-3.png"]} />
+        <Hero1 />
         <TopCategories1 />
         <Suspense fallback={<div>Loading products...</div>}>
           <ProductSection1 />

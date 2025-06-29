@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { CreditCard, Lock, Truck, X, Phone, User, Package, AlertCircle, CheckCircle } from 'lucide-react';
 
+// Type definitions
 interface CartItem {
   _id?: string;
   cartId: string;
@@ -17,20 +18,106 @@ interface CartItem {
   sku?: string;
 }
 
-interface FraudCheckResult {
-  courierData: { [key: string]: [number, number] };
-  riskScore: string; // Changed to string to store as percentage
-  recommendation: string;
-  apiStatus: 'success' | 'failed' | 'timeout';
-  details?: {
-    totalOrders: number;
-    totalFraud: number;
-    fraudPercentage: number;
-    riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  };
+interface FraudCheckDetails {
+  totalOrders: number;
+  totalFraud: number;
+  fraudPercentage: number;
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 }
 
-const Toast = ({ message, type, isVisible, onClose }: any) => {
+interface FraudCheckResult {
+  courierData: { [key: string]: [number, number] };
+  riskScore: string;
+  recommendation: string;
+  apiStatus: 'success' | 'failed' | 'timeout';
+  details?: FraudCheckDetails;
+}
+
+interface CustomerInfo {
+  name: string;
+  mobile: string;
+  address: string;
+  area: string;
+  areaName: string;
+  note: string | null;
+}
+
+interface OrderItem {
+  productId: string;
+  name: string;
+  salePrice: number;
+  quantity: number;
+  itemTotal: number;
+  color: string | null;
+  size: string | null;
+  primaryImage: string | null;
+}
+
+interface StatusHistoryEntry {
+  status: string;
+  timestamp: string;
+  note: string;
+}
+
+interface OrderMetadata {
+  source: string;
+  userAgent: string;
+  platform: string;
+  version: string;
+}
+
+interface OrderData {
+  customerInfo: CustomerInfo;
+  items: OrderItem[];
+  totalAmount: number;
+  totalQuantity: number;
+  deliveryCharge: number;
+  finalTotal: number;
+  paymentMethod: string;
+  paymentMethodName: string;
+  paymentStatus: string;
+  fraudCheckData: {
+    riskScore: string;
+    recommendation: string;
+    courierData: { [key: string]: [number, number] };
+    apiStatus: 'success' | 'failed' | 'timeout';
+    details?: FraudCheckDetails;
+    checkedAt: string;
+  };
+  status: string;
+  statusHistory: StatusHistoryEntry[];
+  orderDate: string;
+  metadata: OrderMetadata;
+}
+
+interface FormData {
+  name: string;
+  mobile: string;
+  address: string;
+  area: string;
+  note: string;
+}
+
+interface ToastProps {
+  message: string;
+  type: 'success' | 'error' | 'info';
+  isVisible: boolean;
+  onClose: () => void;
+}
+
+interface ToastState {
+  message: string;
+  type: 'success' | 'error' | 'info';
+  isVisible: boolean;
+}
+
+interface CartDetails {
+  items: CartItem[];
+  total: string;
+}
+
+// Toast Component
+const Toast = ({ message, type, isVisible, onClose }: ToastProps) => {
   useEffect(() => {
     if (isVisible) {
       const timer = setTimeout(onClose, 5000);
@@ -40,7 +127,7 @@ const Toast = ({ message, type, isVisible, onClose }: any) => {
 
   if (!isVisible) return null;
 
-  const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-primary';
+  const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
   const icon = type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />;
 
   return (
@@ -54,28 +141,34 @@ const Toast = ({ message, type, isVisible, onClose }: any) => {
   );
 };
 
+// Main Component
 export default function EnhancedBengaliCheckout() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [totalPrice, setTotalPrice] = useState(0);
-  const [formData, setFormData] = useState({
+  const [totalPrice, setTotalPrice] = useState<number>(0);
+  const [formData, setFormData] = useState<FormData>({
     name: '',
     mobile: '',
     address: '',
     area: '',
     note: '',
   });
-  const [paymentMethod, setPaymentMethod] = useState('cod');
-  const [orderLoading, setOrderLoading] = useState(false);
-  const [toast, setToast] = useState({ message: '', type: 'info' as const, isVisible: false });
+  const [paymentMethod, setPaymentMethod] = useState<string>('cod');
+  const [orderLoading, setOrderLoading] = useState<boolean>(false);
+  const [toast, setToast] = useState<ToastState>({ 
+    message: '', 
+    type: 'info', 
+    isVisible: false 
+  });
 
   useEffect(() => {
     const cartDetailsString = localStorage.getItem('cartDetails');
     if (cartDetailsString) {
       try {
-        const cartDetails = JSON.parse(cartDetailsString);
+        const cartDetails: CartDetails = JSON.parse(cartDetailsString);
         setCartItems(cartDetails.items || []);
         setTotalPrice(parseFloat(cartDetails.total) || 0);
       } catch (error) {
+        console.error('Error parsing cart details:', error);
         setDemoData();
       }
     } else {
@@ -83,7 +176,7 @@ export default function EnhancedBengaliCheckout() {
     }
   }, []);
 
-  const showToast = (message: string, type: 'success' | 'error' | 'info') => {
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setToast({ message, type, isVisible: true });
   };
 
@@ -162,13 +255,16 @@ export default function EnhancedBengaliCheckout() {
         let totalOrders = 0;
         let totalFraud = 0;
         
-        Object.values(courierData).forEach(([orders, frauds]: [number, number]) => {
-          totalOrders += orders;
-          totalFraud += frauds;
+        Object.values(courierData).forEach((value) => {
+          if (Array.isArray(value) && value.length === 2) {
+            const [orders, frauds] = value as [number, number];
+            totalOrders += orders;
+            totalFraud += frauds;
+          }
         });
         
         const fraudPercentage = totalOrders > 0 ? (totalFraud / totalOrders) * 100 : 0;
-        const riskScore = `${Math.round(fraudPercentage * 10) / 10}%`; // Store as percentage string
+        const riskScore = `${Math.round(fraudPercentage * 10) / 10}%`;
         
         let riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
         let recommendation: string;
@@ -212,7 +308,7 @@ export default function EnhancedBengaliCheckout() {
       }
     } catch (error) {
       let apiStatus: 'timeout' | 'failed' = 'failed';
-      if (typeof error === 'object' && error !== null && 'name' in error && (error as any).name === 'AbortError') {
+      if (error instanceof Error && error.name === 'AbortError') {
         apiStatus = 'timeout';
       }
 
@@ -236,7 +332,7 @@ export default function EnhancedBengaliCheckout() {
     try {
       const fraudCheckData = await performBackgroundFraudCheck(formData.mobile);
       
-      const completeItems = cartItems.map(item => ({
+      const completeItems: OrderItem[] = cartItems.map(item => ({
         productId: item._id || item.cartId,
         name: item.name,
         salePrice: item.salePrice,
@@ -251,7 +347,7 @@ export default function EnhancedBengaliCheckout() {
       const deliveryCharge = formData.area === 'dhaka-inside' ? 60 : 120;
       const finalTotal = itemsSubtotal + deliveryCharge;
 
-      const orderData = {
+      const orderData: OrderData = {
         customerInfo: {
           name: formData.name.trim(),
           mobile: formData.mobile.trim(),
@@ -374,7 +470,7 @@ export default function EnhancedBengaliCheckout() {
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   placeholder="আপনার সম্পূর্ণ নাম লিখুন"
                 />
               </div>
@@ -388,7 +484,7 @@ export default function EnhancedBengaliCheckout() {
                   name="mobile"
                   value={formData.mobile}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   placeholder="০১XXXXXXXXX"
                 />
               </div>
@@ -401,7 +497,7 @@ export default function EnhancedBengaliCheckout() {
                   name="address"
                   value={formData.address}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   rows={3}
                   placeholder="বাড়ির নাম্বার, রাস্তার নাম, এলাকা"
                 />
@@ -415,7 +511,7 @@ export default function EnhancedBengaliCheckout() {
                   name="area"
                   value={formData.area}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors bg-white"
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
                 >
                   <option value="">এলাকা সিলেক্ট করুন</option>
                   <option value="dhaka-inside">ঢাকার ভিতরে (৬০ টাকা)</option>
@@ -431,7 +527,7 @@ export default function EnhancedBengaliCheckout() {
                   name="note"
                   value={formData.note}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   rows={2}
                   placeholder="অতিরিক্ত কোনো তথ্য থাকলে লিখুন"
                 />
@@ -525,7 +621,7 @@ export default function EnhancedBengaliCheckout() {
                     value="cod"
                     checked={paymentMethod === 'cod'}
                     onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="text-primary focus:ring-primary"
+                    className="text-primary focus:ring-blue-500"
                   />
                   <Truck className="w-5 h-5 text-green-600" />
                   <span className="text-slate-700 font-medium">Cash On Delivery</span>
@@ -537,7 +633,7 @@ export default function EnhancedBengaliCheckout() {
                     value="bkash"
                     checked={paymentMethod === 'bkash'}
                     onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="text-primary focus:ring-primary"
+                    className="text-primary focus:ring-blue-500"
                   />
                   <Phone className="w-5 h-5 text-pink-600" />
                   <span className="text-slate-700 font-medium">Bkash</span>
@@ -547,7 +643,7 @@ export default function EnhancedBengaliCheckout() {
               <button
                 onClick={handlePlaceOrder}
                 disabled={cartItems.length === 0 || orderLoading}
-                className="w-full mt-6 py-4 bg-primary text-white font-bold rounded-lg hover:from-primary/90 hover:to-primary transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full mt-6 py-4 bg-primary text-white font-bold rounded-lg hover:bg-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {orderLoading ? (
                   <>
