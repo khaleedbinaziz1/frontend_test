@@ -262,6 +262,9 @@ const ProductSection1: React.FC = () => {
   // Instead of a single grid, show each visible category with its banner and up to 8 products
   const visibleCategories = categories.filter((cat: any) => cat.show !== false);
 
+  // Only show all-products section if there is a search query
+  const showOnlyAllProducts = !!searchQuery && searchQuery.trim().length > 0;
+
   return (
     <section className="py-8 min-h-screen">
       <div className="container mx-auto px-4">
@@ -280,36 +283,7 @@ const ProductSection1: React.FC = () => {
           </p>
         </div>
 
-        {/* Mobile-first filter controls */}
-        <div className="flex flex-col gap-4 mb-6">
-          {/* Top row - Filter button and sort */}
-          <div className="flex justify-between items-center gap-2">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-secondary hover:bg-primary/90 transition-colors duration-200 text-sm font-medium rounded-md"
-            >
-              <Filter className="w-4 h-4" />
-              FILTERS
-              <ChevronDown
-                className={`w-4 h-4 transition-transform ${
-                  showFilters ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="border border-primary/20 px-3 py-2 bg-secondary text-primary text-sm font-medium rounded-md min-w-0 flex-1 max-w-[150px] focus:border-primary focus:outline-none"
-            >
-              <option value="price-asc">Price ↑</option>
-              <option value="price-desc">Price ↓</option>
-              <option value="name-asc">Name A-Z</option>
-              <option value="name-desc">Name Z-A</option>
-            </select>
-          </div>
-
-        </div>
+    
 
         {/* Expanded filters - mobile optimized */}
         <AnimatePresence>
@@ -401,7 +375,8 @@ const ProductSection1: React.FC = () => {
           </div>
         ) : (
           <>
-            {visibleCategories.length === 0 && (
+            {/* Only show per-category sections if not searching */}
+            {!showOnlyAllProducts && visibleCategories.length === 0 && (
               <div className="text-center py-12">
                 <div className="text-primary/60 mb-4">
                   <h3 className="text-lg font-medium mb-2">
@@ -413,7 +388,8 @@ const ProductSection1: React.FC = () => {
                 </div>
               </div>
             )}
-            {visibleCategories.map((category) => {
+            {/* Only show per-category sections if not searching */}
+            {!showOnlyAllProducts && visibleCategories.map((category) => {
               // Get up to 8 products for this category
               const categoryProducts = products.filter(
                 (product) => category._id === product.category
