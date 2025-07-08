@@ -8,6 +8,7 @@ import {
   CartStateContextType,
   CartDetailsContextType
 } from './types';
+import { trackEvent } from '../analytics/tracking';
 
 const CartContext = createContext<CartContextType | null>(null);
 const CartStateContext = createContext<CartStateContextType | null>(null);
@@ -110,6 +111,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       await saveCartState(updatedItems);
+      // Track add_to_cart event
+      trackEvent({ event: 'add_to_cart', productId: product._id });
     } catch (err) {
       setError('Failed to add item to cart');
       console.error('Error adding to cart:', err);
@@ -157,6 +160,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
       const updatedItems = cartItems.filter(item => item.cartId !== cartId);
       await saveCartState(updatedItems);
+      // Track remove_from_cart event
+      trackEvent({ event: 'remove_from_cart', productId: cartId });
     } catch (err) {
       setError('Failed to remove item from cart');
       console.error('Error removing from cart:', err);

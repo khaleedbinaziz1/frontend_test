@@ -6,6 +6,7 @@ import { useCart, useCartState } from './CartProvider';
 import { FaTimes, FaPlus, FaMinus, FaTrash, FaShoppingBag, FaCheckCircle, FaTruck } from 'react-icons/fa';
 import { clearCart } from './cartService';
 import Image from 'next/image';
+import { trackEvent } from '../analytics/tracking';
 
 import { CartItem } from './types';
 

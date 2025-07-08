@@ -34,7 +34,7 @@ const Footer1 = () => {
   useEffect(() => {
     const fetchFooterData = async () => {
       try {
-        const response = await fetch("https://swish-server.vercel.app/getmedia");
+        const response = await fetch("http://localhost:500/getmedia");
         const data = await response.json();
         setFooterData(data);
       } catch (err) {

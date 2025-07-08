@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { CreditCard, Lock, Truck, X, Phone, User, Package, AlertCircle, CheckCircle } from 'lucide-react';
+import { trackEvent } from '../../../components/analytics/tracking';
 
 // Type definitions
 interface CartItem {
@@ -93,6 +94,7 @@ interface OrderData {
 interface FormData {
   name: string;
   mobile: string;
+  email?: string;
   address: string;
   area: string;
   note: string;
@@ -148,6 +150,7 @@ export default function EnhancedBengaliCheckout() {
   const [formData, setFormData] = useState<FormData>({
     name: '',
     mobile: '',
+    email: '',
     address: '',
     area: '',
     note: '',
@@ -175,6 +178,19 @@ export default function EnhancedBengaliCheckout() {
       setDemoData();
     }
   }, []);
+
+  useEffect(() => {
+    trackEvent({
+      event: 'begin_checkout',
+      details: {
+        name: formData.name,
+        phone: formData.mobile,
+        email: formData.email || '',
+        address: formData.address,
+        area: formData.area,
+      }
+    });
+  }, [formData.name, formData.mobile, formData.email, formData.address, formData.area]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setToast({ message, type, isVisible: true });
@@ -229,6 +245,8 @@ export default function EnhancedBengaliCheckout() {
       items: updatedItems, 
       total: newTotal.toFixed(0) 
     }));
+    // Track remove_from_cart event
+    trackEvent({ event: 'remove_from_cart', productId: cartId });
   };
 
   const performBackgroundFraudCheck = async (mobile: string): Promise<FraudCheckResult> => {
@@ -389,7 +407,7 @@ export default function EnhancedBengaliCheckout() {
         }
       };
 
-      const response = await fetch('https://swish-server.vercel.app/addorders', {
+      const response = await fetch('http://localhost:500/addorders', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -416,6 +434,7 @@ export default function EnhancedBengaliCheckout() {
       setFormData({
         name: '',
         mobile: '',
+        email: '',
         address: '',
         area: '',
         note: '',
@@ -424,6 +443,18 @@ export default function EnhancedBengaliCheckout() {
       setTimeout(() => {
         window.location.href = '/';
       }, 2000);
+      
+      trackEvent({
+        event: 'purchase',
+        orderId: result.orderId,
+        details: {
+          name: formData.name,
+          phone: formData.mobile,
+          email: formData.email || '',
+          address: formData.address,
+          area: formData.area,
+        }
+      });
       
     } catch (error) {
       console.error('Order placement error:', error);
@@ -486,6 +517,20 @@ export default function EnhancedBengaliCheckout() {
                   onChange={handleInputChange}
                   className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   placeholder="০১XXXXXXXXX"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-slate-700 font-medium mb-2">
+                  আপনার ইমেইল লিখুন (অপশনাল)
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email || ''}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  placeholder="আপনার ইমেইল লিখুন (অপশনাল)"
                 />
               </div>
               

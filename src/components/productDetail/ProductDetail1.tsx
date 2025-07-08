@@ -104,7 +104,7 @@ const ProductDetail1: React.FC<ProductDetailProps> = ({ product }) => {
       try {
         setLoadingRelated(true);
         const response = await axios.get(
-          "https://swish-server.vercel.app/products",
+          "http://localhost:500/products",
           {
             signal,
             timeout: 8000, // 8 second timeout
