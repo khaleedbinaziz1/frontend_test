@@ -117,9 +117,10 @@ const Footer1 = () => {
     .filter(([key]) => socialIcons[key])
     .map(([key, value]) => ({
       name: key,
-      url: key === 'whatsapp'
-        ? `https://wa.me/${String(value).replace(/\D/g, '')}`
-        : String(value)
+url: key === 'whatsapp'
+  ? `https://wa.me/${String(value).replace(/\D/g, '')}`
+  : String(value)
+
     }));
 
   const contactInfo = [
