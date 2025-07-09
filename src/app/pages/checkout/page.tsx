@@ -407,7 +407,7 @@ export default function EnhancedBengaliCheckout() {
         }
       };
 
-      const response = await fetch('http://localhost:500/addorders', {
+      const response = await fetch('https://swish-server.vercel.app/addorders', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

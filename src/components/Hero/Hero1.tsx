@@ -11,7 +11,7 @@ export default function Hero1() {
   useEffect(() => {
     const fetchHeroImages = async () => {
       try {
-        const res = await fetch("http://localhost:500/getmedia");
+        const res = await fetch("https://swish-server.vercel.app/getmedia");
         const data = await res.json();
         if (res.ok && Array.isArray(data.heroImages)) {
           setHeroImages(data.heroImages);

@@ -16,7 +16,7 @@ export default function AnalyticsOverview() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch('http://localhost:500/tracking-events')
+    fetch('https://swish-server.vercel.app/tracking-events')
       .then(res => res.json())
       .then(data => {
         setEvents(data);

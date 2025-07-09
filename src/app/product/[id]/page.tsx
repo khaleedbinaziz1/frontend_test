@@ -18,7 +18,7 @@ const [error, setError] = useState<string | null>(null);
     const fetchProduct = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`http://localhost:500/products/${productId}`);
+        const response = await axios.get(`https://swish-server.vercel.app/products/${productId}`);
         setProduct(response.data);
       } catch (err) {
         setError('Failed to load product details');

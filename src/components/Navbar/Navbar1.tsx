@@ -31,7 +31,7 @@ const Navbar1 = ({
   const fetchCategories = useCallback(async () => {
     try {
       setIsLoadingCategories(true);
-      const response = await fetch("http://localhost:500/categories");
+      const response = await fetch("https://swish-server.vercel.app/categories");
       if (response.ok) {
         const data: Category[] = await response.json();
         setCategories(data);
@@ -45,7 +45,7 @@ const Navbar1 = ({
 
   const fetchLogo = useCallback(async () => {
     try {
-      const res = await fetch("http://localhost:500/getmedia");
+      const res = await fetch("https://swish-server.vercel.app/getmedia");
       const data = await res.json();
       if (res.ok && data.logo) {
         setLogoUrl(data.logo);

@@ -20,7 +20,7 @@ const TopCategories1 = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await axios.get('http://localhost:500/categories');
+        const response = await axios.get('https://swish-server.vercel.app/categories');
         setCategories(response.data.slice(0, 5));
       } catch (err) {
         setError('Failed to load categories');

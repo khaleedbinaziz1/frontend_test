@@ -6,7 +6,7 @@ export default function MarketingScripts() {
   const [gtm, setGtm] = useState<{ id: string; enabled: boolean } | null>(null);
 
   useEffect(() => {
-    fetch('http://localhost:500/digital-marketing')
+    fetch('https://swish-server.vercel.app/digital-marketing')
       .then(res => res.json())
       .then(data => {
         setMetaPixel(data.metaPixel || null);

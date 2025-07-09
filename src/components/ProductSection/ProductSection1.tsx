@@ -74,14 +74,14 @@ const ProductSection1: React.FC = () => {
 
         // Fetch products with or without search query
         const productUrl = searchQuery
-          ? `http://localhost:500/products?q=${encodeURIComponent(
+          ? `https://swish-server.vercel.app/products?q=${encodeURIComponent(
               searchQuery
             )}`
-          : "http://localhost:500/products";
+          : "https://swish-server.vercel.app/products";
 
         const [productRes, categoryRes] = await Promise.all([
           axios.get(productUrl),
-          axios.get("http://localhost:500/categories"),
+          axios.get("https://swish-server.vercel.app/categories"),
         ]);
 
         console.log("Products fetched:", productRes.data);

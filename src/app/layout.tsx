@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 
 async function getMarketingConfig() {
   try {
-    const res = await fetch('http://localhost:500/digital-marketing', { cache: 'no-store' });
+    const res = await fetch('https://swish-server.vercel.app/digital-marketing', { cache: 'no-store' });
     if (!res.ok) return { metaPixel: null, gtm: null };
     return res.json();
   } catch {
@@ -86,7 +86,7 @@ export default async function RootLayout({
           {`
             (async function() {
               try {
-                const res = await fetch('http://localhost:500/digital-marketing');
+                const res = await fetch('https://swish-server.vercel.app/digital-marketing');
                 if (!res.ok) return;
                 const data = await res.json();
                 if (data.metaPixel && data.metaPixel.enabled && data.metaPixel.id && !window.fbq) {

@@ -27,7 +27,7 @@ export async function trackEvent({ event, productId, orderId, details }: {
     timestamp: Date.now(),
   };
   try {
-    await fetch('http://localhost:500/track-event', {
+    await fetch('https://swish-server.vercel.app/track-event', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
