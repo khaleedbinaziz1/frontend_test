@@ -339,9 +339,63 @@ export default function EnhancedBengaliCheckout() {
     }
   };
 
+  // Add bKash payment handler
+  const handleBkashPayment = async () => {
+    try {
+      setOrderLoading(true);
+      const orderId = Date.now();
+      const res = await fetch('/api/bkash/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: totalPrice, orderId }),
+      });
+      const data = await res.json();
+      if (data.bkashURL) {
+        window.location.href = data.bkashURL;
+      } else {
+        showToast('bKash পেমেন্ট শুরু করা যায়নি', 'error');
+        setOrderLoading(false);
+      }
+    } catch (err) {
+      showToast('bKash পেমেন্ট শুরু করা যায়নি', 'error');
+      setOrderLoading(false);
+    }
+  };
+
+  const handleNagadPayment = async () => {
+    try {
+      setOrderLoading(true);
+      const res = await fetch('/api/nagad/create-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: totalPrice }),
+      });
+      const data = await res.json();
+      if (data && data.payment_url) {
+        window.location.href = data.payment_url;
+      } else {
+        showToast('Nagad পেমেন্ট শুরু করা যায়নি', 'error');
+        setOrderLoading(false);
+      }
+    } catch (err) {
+      showToast('Nagad পেমেন্ট শুরু করা যায়নি', 'error');
+      setOrderLoading(false);
+    }
+  };
+
+  // Update handlePlaceOrder to use bKash handler if paymentMethod is 'bkash'
   const handlePlaceOrder = async () => {
     if (!formData.name || !formData.mobile || !formData.address || !formData.area) {
       showToast('সকল প্রয়োজনীয় তথ্য পূরণ করুন', 'error');
+      return;
+    }
+
+    if (paymentMethod === 'bkash') {
+      await handleBkashPayment();
+      return;
+    }
+    if (paymentMethod === 'nagad') {
+      await handleNagadPayment();
       return;
     }
 
@@ -501,6 +555,7 @@ export default function EnhancedBengaliCheckout() {
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
+                  required
                   className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   placeholder="আপনার সম্পূর্ণ নাম লিখুন"
                 />
@@ -515,6 +570,7 @@ export default function EnhancedBengaliCheckout() {
                   name="mobile"
                   value={formData.mobile}
                   onChange={handleInputChange}
+                  required
                   className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   placeholder="০১XXXXXXXXX"
                 />
@@ -542,6 +598,7 @@ export default function EnhancedBengaliCheckout() {
                   name="address"
                   value={formData.address}
                   onChange={handleInputChange}
+                  required
                   className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   rows={3}
                   placeholder="বাড়ির নাম্বার, রাস্তার নাম, এলাকা"
@@ -654,11 +711,11 @@ export default function EnhancedBengaliCheckout() {
             
             {/* Payment Methods */}
             <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
-              <h3 className="font-bold text-primary mb-4 flex items-center gap-2">
+              <h3 className="font-bold text-primary mb-4 flex items-center gap-2 text-lg">
                 <CreditCard className="w-5 h-5" />
                 পেমেন্ট মেথড
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-3 mb-6">
                 <label className="flex items-center space-x-3 cursor-pointer p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
                   <input 
                     type="radio" 
@@ -680,15 +737,26 @@ export default function EnhancedBengaliCheckout() {
                     onChange={(e) => setPaymentMethod(e.target.value)}
                     className="text-primary focus:ring-blue-500"
                   />
-                  <Phone className="w-5 h-5 text-pink-600" />
+                  <img src="https://cdn.jsdelivr.net/gh/mahmudulbd/bkash-payment-gateway/assets/bkash-logo.png" alt="Bkash" className="w-7 h-7 object-contain" />
                   <span className="text-slate-700 font-medium">Bkash</span>
                 </label>
+                <label className="flex items-center space-x-3 cursor-pointer p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                  <input 
+                    type="radio" 
+                    name="payment" 
+                    value="nagad"
+                    checked={paymentMethod === 'nagad'}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="text-primary focus:ring-orange-500"
+                  />
+                  <img src="https://download.logo.wine/logo/Nagad/Nagad-Logo.wine.png" alt="Nagad" className="w-7 h-7 object-contain" />
+                  <span className="text-slate-700 font-medium">Nagad</span>
+                </label>
               </div>
-              
               <button
                 onClick={handlePlaceOrder}
                 disabled={cartItems.length === 0 || orderLoading}
-                className="w-full mt-6 py-4 bg-primary text-white font-bold rounded-lg hover:bg-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-4 bg-primary text-white font-bold rounded-lg hover:bg-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {orderLoading ? (
                   <>
@@ -702,7 +770,6 @@ export default function EnhancedBengaliCheckout() {
                   </>
                 )}
               </button>
-              
               <div className="mt-4 text-center text-sm text-slate-500">
                 <Lock className="w-4 h-4 inline mr-1" />
                 আপনার তথ্য সুরক্ষিত
